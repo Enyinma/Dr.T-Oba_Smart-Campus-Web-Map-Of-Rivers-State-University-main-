@@ -4,7 +4,7 @@ This export is completely "self-contained".
 
 To view the map, simply open "index.html" by double-clicking it.
 No web server or additional software is required.
-
+https://enyinma.github.io/Dr.T-Oba_Smart-Campus-Web-Map-Of-Rivers-State-University-main-/
 The map works because all the required JavaScript libraries are included
 in the export. The application loads the GeoJSON layer data and their styles
 directly from the local files.
