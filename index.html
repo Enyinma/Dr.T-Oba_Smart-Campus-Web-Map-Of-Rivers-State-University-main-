@@ -1,0 +1,1471 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/L.Control.Locate.min.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet-search.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <link rel="stylesheet" href="css/leaflet-measure.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title></title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/L.Control.Locate.min.js"></script>
+        <script src="js/multi-style-layer.js"></script>
+        <script src="js/leaflet-svg-shape-markers.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="js/leaflet-measure.js"></script>
+        <script src="js/leaflet-search.js"></script>
+        <script src="data/RSU_CONTOUR_4.js"></script>
+        <script src="data/RSU_SPOTHEIGHT_5.js"></script>
+        <script src="data/FootPath_6.js"></script>
+        <script src="data/BOUNDARY_7.js"></script>
+        <script src="data/CampusBuilding_8.js"></script>
+        <script src="data/RSUMainCampusDatabase_9.js"></script>
+        <script src="data/RSUVideo_10.js"></script>
+        <script>
+        var highlightLayer;
+        function highlightFeature(e) {
+            highlightLayer = e.target;
+
+            if (e.target.feature.geometry.type === 'LineString' || e.target.feature.geometry.type === 'MultiLineString') {
+              highlightLayer.setStyle({
+                color: 'rgba(255, 255, 255, 1.00)',
+              });
+            } else {
+              highlightLayer.setStyle({
+                fillColor: 'rgba(255, 255, 255, 1.00)',
+                fillOpacity: 1
+              });
+            }
+            highlightLayer.openPopup();
+        }
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[4.787576549344501,6.961118138515954],[4.8070485083950265,7.002091795085194]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/qgis2web/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // modify popup if contains media
+        // modify popup if contains media
+function addClassToPopupIfMedia(content, popup) {
+    var tempDiv = document.createElement('div');
+    tempDiv.innerHTML = content;
+
+    var imgTd = tempDiv.querySelector('td img');
+
+    if (imgTd) {
+        var src = imgTd.getAttribute('src');
+
+        // IMAGE
+        if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+
+            popup._contentNode.classList.add('media');
+
+            var img = popup._contentNode.querySelector('td img');
+
+            if (img) {
+                if (img.complete && img.naturalHeight > 0) {
+                    popup.update();
+                } else {
+                    img.addEventListener('load', function() {
+                        popup.update();
+                    });
+
+                    img.addEventListener('error', function() {
+                        popup.update();
+                    });
+                }
+            }
+
+        // AUDIO
+        } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+
+            var audio = document.createElement('audio');
+
+            audio.controls = true;
+            audio.src = src;
+
+            imgTd.parentNode.replaceChild(audio, imgTd);
+
+            popup._contentNode.classList.add('media');
+
+            setTimeout(function() {
+                popup.setContent(tempDiv.innerHTML);
+                popup.update();
+            }, 10);
+
+        // VIDEO
+        } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+
+            var video = document.createElement('video');
+
+            video.controls = true;
+            video.autoplay = true;
+            video.muted = true;
+            video.playsInline = true;
+            video.preload = 'auto';
+
+            video.style.width = "400px";
+            video.style.height = "300px";
+            video.style.maxHeight = "60vh";
+            video.style.maxWidth = "60vw";
+
+            video.src = src;
+
+            imgTd.parentNode.replaceChild(video, imgTd);
+
+            popup._contentNode.classList.add('media');
+
+            video.addEventListener('loadedmetadata', function() {
+
+                popup.update();
+
+                video.play().catch(function(error) {
+                    console.log("Video autoplay failed:", error);
+                });
+
+            });
+
+            video.addEventListener('error', function() {
+                console.log("Video failed to load:", src);
+                console.log("Video error:", video.error);
+            });
+
+            setTimeout(function() {
+                popup.setContent(tempDiv.innerHTML);
+                popup.update();
+            }, 10);
+
+        } else {
+            popup._contentNode.classList.remove('media');
+        }
+
+    } else {
+        popup._contentNode.classList.remove('media');
+    }
+}
+        // function addClassToPopupIfMedia(content, popup) {
+        //     var tempDiv = document.createElement('div');
+        //     tempDiv.innerHTML = content;
+        //     var imgTd = tempDiv.querySelector('td img');
+        //     if (imgTd) {
+        //         var src = imgTd.getAttribute('src');
+        //         if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+        //             popup._contentNode.classList.add('media');
+        //             var img = popup._contentNode.querySelector('td img');
+        //             if (img) {
+        //                 // If already loaded (cache), update immediately
+        //                 if (img.complete && img.naturalHeight > 0) {
+        //                     popup.update();
+        //                 } else {
+        //                     img.addEventListener('load', function() {
+        //                         popup.update();
+        //                     });
+        //                     img.addEventListener('error', function() {
+        //                         popup.update();
+        //                     });
+        //                 }
+        //             }
+        //         } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+        //             var audio = document.createElement('audio');
+        //             audio.controls = true;
+        //             audio.src = src;
+        //             imgTd.parentNode.replaceChild(audio, imgTd);
+        //             popup._contentNode.classList.add('media');
+        //             setTimeout(function() {
+        //                 popup.setContent(tempDiv.innerHTML);
+        //                 popup.update();
+        //             }, 10);
+        //         } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+        //             var video = document.createElement('video');
+        //             video.controls = true;
+        //             video.src = src;
+        //             video.style.width = "400px";
+        //             video.style.height = "300px";
+        //             video.style.maxHeight = "60vh";
+        //             video.style.maxWidth = "60vw";
+        //             imgTd.parentNode.replaceChild(video, imgTd);
+        //             popup._contentNode.classList.add('media');
+        //             // Aggiorna il popup quando il video carica i metadati
+        //             video.addEventListener('loadedmetadata', function() {
+        //                 popup.update();
+        //             });
+        //             setTimeout(function() {
+        //                 popup.setContent(tempDiv.innerHTML);
+        //                 popup.update();
+        //             }, 10);
+        //         } else {
+        //             popup._contentNode.classList.remove('media');
+        //         }
+        //     } else {
+        //         popup._contentNode.classList.remove('media');
+        //     }
+        // }
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        L.control.locate({locateOptions: {maxZoom: 19}}).addTo(map);
+        var measureControl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares'
+        });
+        measureControl.addTo(map);
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].innerHTML = '';
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].className += ' fas fa-ruler';
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        map.createPane('pane_GoogleRoad_0');
+        map.getPane('pane_GoogleRoad_0').style.zIndex = 400;
+        var layer_GoogleRoad_0 = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleRoad_0',
+            opacity: 1.0,
+            attribution: '<a href="https://www.google.at/permissions/geoguidelines/attr-guide.html">Map data ©2015 Google</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_GoogleRoad_0;
+        map.addLayer(layer_GoogleRoad_0);
+        map.createPane('pane_GoogleSatellite_1');
+        map.getPane('pane_GoogleSatellite_1').style.zIndex = 401;
+        var layer_GoogleSatellite_1 = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleSatellite_1',
+            opacity: 1.0,
+            attribution: '<a href="https://www.google.at/permissions/geoguidelines/attr-guide.html">Map data ©2015 Google</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_GoogleSatellite_1;
+        map.addLayer(layer_GoogleSatellite_1);
+        map.createPane('pane_OSMStandard_2');
+        map.getPane('pane_OSMStandard_2').style.zIndex = 402;
+        var layer_OSMStandard_2 = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            pane: 'pane_OSMStandard_2',
+            opacity: 1.0,
+            attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors, CC-BY-SA</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 19
+        });
+        layer_OSMStandard_2;
+        map.addLayer(layer_OSMStandard_2);
+        map.createPane('pane_RSU_DEM_TIN_3');
+        map.getPane('pane_RSU_DEM_TIN_3').style.zIndex = 403;
+        var img_RSU_DEM_TIN_3 = 'data/RSU_DEM_TIN_3.png';
+        var img_bounds_RSU_DEM_TIN_3 = [[4.7870045039803815,6.974256767160671],[4.80723564937551,6.9870281069838835]];
+        var layer_RSU_DEM_TIN_3 = new L.imageOverlay(img_RSU_DEM_TIN_3,
+                                              img_bounds_RSU_DEM_TIN_3,
+                                              {pane: 'pane_RSU_DEM_TIN_3'});
+        bounds_group.addLayer(layer_RSU_DEM_TIN_3);
+        map.addLayer(layer_RSU_DEM_TIN_3);
+        function pop_RSU_CONTOUR_4(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(String(feature.properties['fid']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ID'] !== null ? autolinker.link(String(feature.properties['ID']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="ELEV" colspan="2"><strong>ELEV</strong><br />' + (feature.properties['ELEV'] !== null ? autolinker.link(String(feature.properties['ELEV']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_RSU_CONTOUR_4_0() {
+            return {
+                pane: 'pane_RSU_CONTOUR_4',
+                opacity: 1,
+                color: 'rgba(213,180,60,1.0)',
+                dashArray: '',
+                lineCap: 'round',
+                lineJoin: 'round',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: false,
+            }
+        }
+        map.createPane('pane_RSU_CONTOUR_4');
+        map.getPane('pane_RSU_CONTOUR_4').style.zIndex = 404;
+        map.getPane('pane_RSU_CONTOUR_4').style['mix-blend-mode'] = 'normal';
+        var layer_RSU_CONTOUR_4 = new L.geoJson(json_RSU_CONTOUR_4, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_RSU_CONTOUR_4',
+            layerName: 'layer_RSU_CONTOUR_4',
+            pane: 'pane_RSU_CONTOUR_4',
+            onEachFeature: pop_RSU_CONTOUR_4,
+            style: style_RSU_CONTOUR_4_0,
+        });
+        bounds_group.addLayer(layer_RSU_CONTOUR_4);
+        map.addLayer(layer_RSU_CONTOUR_4);
+        function pop_RSU_SPOTHEIGHT_5(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['id'] !== null ? autolinker.link(String(feature.properties['id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Eastings'] !== null ? autolinker.link(String(feature.properties['Eastings']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Northings'] !== null ? autolinker.link(String(feature.properties['Northings']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Height</th>\
+                        <td class="visible-with-data" id="Height">' + (feature.properties['Height'] !== null ? autolinker.link(String(feature.properties['Height']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_RSU_SPOTHEIGHT_5_0() {
+            return {
+                pane: 'pane_RSU_SPOTHEIGHT_5',
+                radius: 2.0,
+                opacity: 1,
+                color: 'rgba(0,0,0,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(110,72,30,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_RSU_SPOTHEIGHT_5');
+        map.getPane('pane_RSU_SPOTHEIGHT_5').style.zIndex = 405;
+        map.getPane('pane_RSU_SPOTHEIGHT_5').style['mix-blend-mode'] = 'normal';
+        var layer_RSU_SPOTHEIGHT_5 = new L.geoJson(json_RSU_SPOTHEIGHT_5, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_RSU_SPOTHEIGHT_5',
+            layerName: 'layer_RSU_SPOTHEIGHT_5',
+            pane: 'pane_RSU_SPOTHEIGHT_5',
+            onEachFeature: pop_RSU_SPOTHEIGHT_5,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_RSU_SPOTHEIGHT_5_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_RSU_SPOTHEIGHT_5);
+        map.addLayer(layer_RSU_SPOTHEIGHT_5);
+        function pop_FootPath_6(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['id'] !== null ? autolinker.link(String(feature.properties['id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_FootPath_6_0() {
+            return {
+                pane: 'pane_FootPath_6',
+                opacity: 1,
+                color: 'rgba(0,0,0,1.0)',
+                dashArray: '',
+                lineCap: 'round',
+                lineJoin: 'round',
+                weight: 3.0,
+                fillOpacity: 0,
+                interactive: false,
+            }
+        }
+        map.createPane('pane_FootPath_6');
+        map.getPane('pane_FootPath_6').style.zIndex = 406;
+        map.getPane('pane_FootPath_6').style['mix-blend-mode'] = 'normal';
+        var layer_FootPath_6 = new L.geoJson(json_FootPath_6, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_FootPath_6',
+            layerName: 'layer_FootPath_6',
+            pane: 'pane_FootPath_6',
+            onEachFeature: pop_FootPath_6,
+            style: style_FootPath_6_0,
+        });
+        bounds_group.addLayer(layer_FootPath_6);
+        map.addLayer(layer_FootPath_6);
+        function pop_BOUNDARY_7(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">AREA</th>\
+                        <td>' + (feature.properties['AREA'] !== null ? autolinker.link(String(feature.properties['AREA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">PERIMETER</th>\
+                        <td>' + (feature.properties['PERIMETER'] !== null ? autolinker.link(String(feature.properties['PERIMETER']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_BOUNDARY_7_0() {
+            return {
+                pane: 'pane_BOUNDARY_7',
+                opacity: 1,
+                color: 'rgba(227,26,28,1.0)',
+                dashArray: '',
+                lineCap: 'round',
+                lineJoin: 'round',
+                weight: 2.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_BOUNDARY_7');
+        map.getPane('pane_BOUNDARY_7').style.zIndex = 407;
+        map.getPane('pane_BOUNDARY_7').style['mix-blend-mode'] = 'normal';
+        var layer_BOUNDARY_7 = new L.geoJson(json_BOUNDARY_7, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_BOUNDARY_7',
+            layerName: 'layer_BOUNDARY_7',
+            pane: 'pane_BOUNDARY_7',
+            onEachFeature: pop_BOUNDARY_7,
+            style: style_BOUNDARY_7_0,
+        });
+        bounds_group.addLayer(layer_BOUNDARY_7);
+        map.addLayer(layer_BOUNDARY_7);
+        function pop_CampusBuilding_8(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['id'] !== null ? autolinker.link(String(feature.properties['id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_CampusBuilding_8_0() {
+            return {
+                pane: 'pane_CampusBuilding_8',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(51,160,44,1.0)',
+                interactive: false,
+            }
+        }
+        map.createPane('pane_CampusBuilding_8');
+        map.getPane('pane_CampusBuilding_8').style.zIndex = 408;
+        map.getPane('pane_CampusBuilding_8').style['mix-blend-mode'] = 'normal';
+        var layer_CampusBuilding_8 = new L.geoJson(json_CampusBuilding_8, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_CampusBuilding_8',
+            layerName: 'layer_CampusBuilding_8',
+            pane: 'pane_CampusBuilding_8',
+            onEachFeature: pop_CampusBuilding_8,
+            style: style_CampusBuilding_8_0,
+        });
+        bounds_group.addLayer(layer_CampusBuilding_8);
+        map.addLayer(layer_CampusBuilding_8);
+        function pop_RSUMainCampusDatabase_9(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Serial NO.</th>\
+                        <td class="visible-with-data" id="Serial NO.">' + (feature.properties['Serial NO.'] !== null ? autolinker.link(String(feature.properties['Serial NO.']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">NAME</th>\
+                        <td class="visible-with-data" id="NAME">' + (feature.properties['NAME'] !== null ? autolinker.link(String(feature.properties['NAME']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">FUNCTION</th>\
+                        <td class="visible-with-data" id="FUNCTION">' + (feature.properties['FUNCTION'] !== null ? autolinker.link(String(feature.properties['FUNCTION']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">EASTINGS</th>\
+                        <td class="visible-with-data" id="EASTINGS">' + (feature.properties['EASTINGS'] !== null ? autolinker.link(String(feature.properties['EASTINGS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">NORTHINGS</th>\
+                        <td class="visible-with-data" id="NORTHINGS">' + (feature.properties['NORTHINGS'] !== null ? autolinker.link(String(feature.properties['NORTHINGS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">PHOTO</th>\
+                        <td class="visible-with-data" id="PHOTO">' + (feature.properties['PHOTO'] !== null ? '<img src="images/' + String(feature.properties['PHOTO']).replace(/[\\/:]/g, '_').trim().replace(/'/g, '\'').replace(/"/g, '&quot;') + '">' : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['DATE OF DA'] !== null ? autolinker.link(String(feature.properties['DATE OF DA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_RSUMainCampusDatabase_9_0(feature) {
+            switch(String(feature.properties['FUNCTION'])) {
+                case 'Accomodation':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(231,164,87,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Arena':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(193,217,120,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Bank':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(209,216,114,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Book':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(99,126,225,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Business Center':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(213,120,157,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'CLINIC':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(49,152,231,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Department':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(84,210,219,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Eatery':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(16,203,44,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Faculty':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(174,108,235,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Farm':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(84,141,233,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Geldashe football Club':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(116,96,225,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Generator House':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(237,127,68,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Hall':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(225,49,51,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Hospital':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(179,40,238,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Hostel':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(86,90,203,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Institute':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(209,59,30,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Laboratory':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(105,212,199,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Lecture Hall':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(90,209,152,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Library':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(156,207,125,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Office':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(20,206,150,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Power Plant':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(91,200,64,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Restroom':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(192,78,207,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'ROAD PHOTO':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(240,181,43,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'School':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(51,206,48,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Security Post':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(99,235,144,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Shuttle Pack':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(234,125,189,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Sport':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(139,212,44,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Store':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(90,199,235,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Studio':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(214,69,204,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Uncompleted building':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(232,49,189,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Workship':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(229,216,119,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Worship center':
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(168,136,232,1.0)',
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_RSUMainCampusDatabase_9',
+                shape: 'square',
+                radius: 3.2,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(217,54,86,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_RSUMainCampusDatabase_9');
+        map.getPane('pane_RSUMainCampusDatabase_9').style.zIndex = 409;
+        map.getPane('pane_RSUMainCampusDatabase_9').style['mix-blend-mode'] = 'normal';
+        var layer_RSUMainCampusDatabase_9 = new L.geoJson(json_RSUMainCampusDatabase_9, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_RSUMainCampusDatabase_9',
+            layerName: 'layer_RSUMainCampusDatabase_9',
+            pane: 'pane_RSUMainCampusDatabase_9',
+            onEachFeature: pop_RSUMainCampusDatabase_9,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.shapeMarker(latlng, style_RSUMainCampusDatabase_9_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_RSUMainCampusDatabase_9);
+        map.addLayer(layer_RSUMainCampusDatabase_9);
+        function pop_RSUVideo_10(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Name</th>\
+                        <td class="visible-with-data" id="Name">' + (feature.properties['Name'] !== null ? autolinker.link(String(feature.properties['Name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Path</th>\
+                        <td class="visible-with-data" id="Path">' + (feature.properties['Path'] !== null ? '<img src="images/' + String(feature.properties['Path']).replace(/[\\/:]/g, '_').trim().replace(/'/g, '\'').replace(/"/g, '&quot;') + '">' : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_RSUVideo_10_0() {
+            return {
+                pane: 'pane_RSUVideo_10',
+                radius: 1.833334,
+                opacity: 1,
+                color: 'rgba(184,8,8,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(184,8,8,1.0)',
+                interactive: true,
+            }
+        }
+        function style_RSUVideo_10_1() {
+            return {
+                pane: 'pane_RSUVideo_10',
+                radius: 2.0,
+                opacity: 1,
+                color: 'rgba(255,0,0,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,0,0,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_RSUVideo_10');
+        map.getPane('pane_RSUVideo_10').style.zIndex = 410;
+        map.getPane('pane_RSUVideo_10').style['mix-blend-mode'] = 'normal';
+        var layer_RSUVideo_10 = new L.geoJson.multiStyle(json_RSUVideo_10, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_RSUVideo_10',
+            layerName: 'layer_RSUVideo_10',
+            pane: 'pane_RSUVideo_10',
+            onEachFeature: pop_RSUVideo_10,
+            pointToLayers: [function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.shapeMarker(latlng, style_RSUVideo_10_0(feature));
+            },function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.shapeMarker(latlng, style_RSUVideo_10_1(feature));
+            },
+        ]});
+        bounds_group.addLayer(layer_RSUVideo_10);
+        map.addLayer(layer_RSUVideo_10);
+        const url = {"Nominatim OSM": "https://nominatim.openstreetmap.org/search?format=geojson&addressdetails=1&",
+        "France BAN": "https://api-adresse.data.gouv.fr/search/?"}
+        var photonControl = L.control.photon({
+            url: url["Nominatim OSM"],
+            feedbackLabel: '',
+            position: 'topleft',
+            includePosition: true,
+            initial: true,
+            // resultsHandler: myHandler,
+        }).addTo(map);
+        photonControl._container.childNodes[0].style.borderRadius="10px"
+        // Create a variable to store the geoJSON data
+        var x = null;
+        // Create a variable to store the marker
+        var marker = null;
+        // Add an event listener to the Photon control to create a marker from the returned geoJSON data
+        var z = null;
+        photonControl.on('selected', function(e) {
+            console.log(photonControl.search.resultsContainer);
+            if (x != null) {
+                map.removeLayer(obj3.marker);
+                map.removeLayer(x);
+            }
+            obj2.gcd = e.choice;
+            x = L.geoJSON(obj2.gcd).addTo(map);
+            var label = typeof obj2.gcd.properties.label === 'undefined' ? obj2.gcd.properties.display_name : obj2.gcd.properties.label;
+            obj3.marker = L.marker(x.getLayers()[0].getLatLng()).bindPopup(label).addTo(map);
+            map.setView(x.getLayers()[0].getLatLng(), 17);
+            z = typeof e.choice.properties.label === 'undefined'? e.choice.properties.display_name : e.choice.properties.label;
+            console.log(e);
+            e.target.input.value = z;
+        });
+        var search = document.getElementsByClassName("leaflet-photon leaflet-control")[0];
+        search.classList.add("leaflet-control-search")
+        search.style.display = "flex";
+        search.style.backgroundColor="rgba(255,255,255,0.5)" 
+
+        // Create the new button element
+        var button = document.createElement("div");
+        button.id = "gcd-button-control";
+        button.className = "gcd-gl-btn fa fa-search search-button";
+
+        // Insert the button at the beginning of the search control
+        search.insertBefore(button, search.firstChild);
+        last = search.lastChild;
+        last.style.display = "none";
+        button.addEventListener("click", function (e) {
+            if (last.style.display === "none") {
+                last.style.display = "block";
+            } else {
+                last.style.display = "none";
+            }
+        });
+        var overlaysTree = [
+            {label: '<img src="legend/RSUVideo_10.png" /> RSU Video', layer: layer_RSUVideo_10},
+            {label: 'RSU Main Campus Database<br /><table><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Accomodation0.png" /></td><td>Accomodation</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Arena1.png" /></td><td>Arena</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Bank2.png" /></td><td>Bank</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Book3.png" /></td><td>Book</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_BusinessCenter4.png" /></td><td>Business Center</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_CLINIC5.png" /></td><td>CLINIC</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Department6.png" /></td><td>Department</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Eatery7.png" /></td><td>Eatery</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Faculty8.png" /></td><td>Faculty</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Farm9.png" /></td><td>Farm</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_GeldashefootballClub10.png" /></td><td>Geldashe football Club</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_GeneratorHouse11.png" /></td><td>Generator House</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Hall12.png" /></td><td>Hall</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Hospital13.png" /></td><td>Hospital</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Hostel14.png" /></td><td>Hostel</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Institute15.png" /></td><td>Institute</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Laboratory16.png" /></td><td>Laboratory</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_LectureHall17.png" /></td><td>Lecture Hall</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Library18.png" /></td><td>Library</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Office19.png" /></td><td>Office</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_PowerPlant20.png" /></td><td>Power Plant</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Restroom21.png" /></td><td>Restroom</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_ROADPHOTO22.png" /></td><td>ROAD PHOTO</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_School23.png" /></td><td>School</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_SecurityPost24.png" /></td><td>Security Post</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_ShuttlePack25.png" /></td><td>Shuttle Pack</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Sport26.png" /></td><td>Sport</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Store27.png" /></td><td>Store</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Studio28.png" /></td><td>Studio</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Uncompletedbuilding29.png" /></td><td>Uncompleted building</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Workship30.png" /></td><td>Workship</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_Worshipcenter31.png" /></td><td>Worship center</td></tr><tr><td style="text-align: center;"><img src="legend/RSUMainCampusDatabase_9_32.png" /></td><td></td></tr></table>', layer: layer_RSUMainCampusDatabase_9},
+            {label: '<img src="legend/CampusBuilding_8.png" /> Campus Building', layer: layer_CampusBuilding_8},
+            {label: '<img src="legend/BOUNDARY_7.png" /> BOUNDARY ', layer: layer_BOUNDARY_7},
+            {label: '<img src="legend/FootPath_6.png" /> FootPath', layer: layer_FootPath_6},
+            {label: '<img src="legend/RSU_SPOTHEIGHT_5.png" /> RSU_SPOT HEIGHT', layer: layer_RSU_SPOTHEIGHT_5},
+            {label: '<img src="legend/RSU_CONTOUR_4.png" /> RSU_CONTOUR ', layer: layer_RSU_CONTOUR_4},
+            {label: "RSU_DEM_TIN", layer: layer_RSU_DEM_TIN_3},
+            {label: "OSM Standard", layer: layer_OSMStandard_2, radioGroup: 'bm' },
+            {label: "Google Satellite", layer: layer_GoogleSatellite_1, radioGroup: 'bm' },
+            {label: "Google Road", layer: layer_GoogleRoad_0, radioGroup: 'bm' },]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: true,
+        });
+        lay.addTo(map);
+        setBounds();
+        var i = 0;
+        layer_RSU_CONTOUR_4.eachLayer(function(layer) {
+            var context = {
+                feature: layer.feature,
+                variables: {}
+            };
+            layer.bindTooltip((layer.feature.properties['fid'] !== null?String('<div style="color: #0a0a0a; font-size: 5pt; font-family: \'Open Sans\', sans-serif;">' + layer.feature.properties['fid']) + '</div>':''), {permanent: true, offset: [-0, -16], className: 'css_RSU_CONTOUR_4'});
+            labels.push(layer);
+            totalMarkers += 1;
+              layer.added = true;
+              addLabel(layer, i);
+              i++;
+        });
+        map.addControl(new L.Control.Search({
+            layer: layer_RSUMainCampusDatabase_9,
+            initial: false,
+            hideMarkerOnCollapse: true,
+            propertyName: 'DATE OF DA'}));
+        if (typeof url === 'undefined') {
+            document.getElementsByClassName('search-button')[0].className += ' fa fa-binoculars';
+        } else {
+            document.getElementsByClassName('search-button')[1].className += ' fa fa-binoculars';
+        }
+        L.ImageOverlay.include({
+            getBounds: function () {
+                return this._bounds;
+            }
+        });
+        resetLabels([layer_RSU_CONTOUR_4]);
+        map.on("zoomend", function(){
+            resetLabels([layer_RSU_CONTOUR_4]);
+        });
+        map.on("layeradd", function(){
+            resetLabels([layer_RSU_CONTOUR_4]);
+        });
+        map.on("layerremove", function(){
+            resetLabels([layer_RSU_CONTOUR_4]);
+        });
+        </script>        
+    </body>
+</html>

@@ -1,0 +1,1 @@
+var json_RSUVideo_10 = {"type":"FeatureCollection","name":"RSUVideo_10","crs":{"type":"name","properties":{"name":"urn:ogc:def:crs:OGC:1.3:CRS84"}},"features":[{"type":"Feature","properties":{"Name":"RSU Video","Path":"C:\\Users\\IT Admin\\Desktop\\QGIS PHOTOS\\WISDOM.mp4"},"geometry":{"type":"Point","coordinates":[6.986869136030088,4.804105627398447]}}]}
